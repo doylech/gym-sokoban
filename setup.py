@@ -10,13 +10,13 @@ with open("README.md", "r") as fh:
 
 setup(
       name='gym_sokoban',
-      version='0.0.5',
-      author="Max-Philipp Schrader",
+      version='0.0.5.1',
+      author="Max-Philipp Schrader / modified by doylech.",
       description='Sokoban environment for OpenAI Gym',
       long_description=long_description,
       long_description_content_type="text/markdown",
        url="https://github.com/mpSchrader/gym-sokoban",
-      install_requires=['gym>=0.2.3', 'numpy>=1.14.1', 'tqdm>=4.32.1', 'imageio>=2.3.0', 'requests>=2.22.0'],
+      install_requires=['gymnasium>=0.29.1', 'numpy>=1.14.1', 'tqdm>=4.32.1', 'imageio>=2.3.0', 'requests>=2.22.0'],
       packages=find_packages(),
       package_data={
       'gym_sokoban': ['envs/*', 'envs/surface/*', 'envs/surface/*/*'],
