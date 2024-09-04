@@ -1,7 +1,7 @@
-import gym
-from gym.utils import seeding
-from gym.spaces.discrete import Discrete
-from gym.spaces import Box
+import gymnasium as gym
+from gymnasium.utils import seeding
+from gymnasium.spaces.discrete import Discrete
+from gymnasium.spaces import Box
 from .room_utils import generate_room
 from .render_utils import room_to_rgb, room_to_tiny_world_rgb
 import numpy as np
@@ -48,13 +48,15 @@ class SokobanEnv(gym.Env):
             # Initialize Room
             _ = self.reset()
 
+        self.render_mode = 'rgb_array'  # Added, used downstream
+
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
     def step(self, action, observation_mode='rgb_array'):
         assert action in ACTION_LOOKUP
-        assert observation_mode in ['rgb_array', 'tiny_rgb_array', 'raw']
+        assert observation_mode in ['rgb_array', 'tiny_rgb_array']
 
         self.num_env_steps += 1
 
@@ -84,12 +86,17 @@ class SokobanEnv(gym.Env):
             "action.name": ACTION_LOOKUP[action],
             "action.moved_player": moved_player,
             "action.moved_box": moved_box,
+            "room_state": self.room_state,  # Added
+            "room_fixed": self.room_fixed,  # Added
         }
         if done:
             info["maxsteps_used"] = self._check_if_maxsteps()
             info["all_boxes_on_target"] = self._check_if_all_boxes_on_target()
 
-        return observation, self.reward_last, done, info
+        # Split done into terminated and truncated
+        terminated = self._check_if_all_boxes_on_target()
+        truncated = self._check_if_maxsteps()
+        return observation, self.reward_last, terminated, truncated, info
 
     def _push(self, action):
         """
@@ -199,7 +206,7 @@ class SokobanEnv(gym.Env):
     def _check_if_maxsteps(self):
         return (self.max_steps == self.num_env_steps)
 
-    def reset(self, second_player=False, render_mode='rgb_array'):
+    def reset(self, second_player=False, render_mode='rgb_array', seed=None):
         try:
             self.room_fixed, self.room_state, self.box_mapping = generate_room(
                 dim=self.dim_room,
@@ -210,7 +217,7 @@ class SokobanEnv(gym.Env):
         except (RuntimeError, RuntimeWarning) as e:
             print("[SOKOBAN] Runtime Error/Warning: {}".format(e))
             print("[SOKOBAN] Retry . . .")
-            return self.reset(second_player=second_player, render_mode=render_mode)
+            return self.reset(second_player=second_player)
 
         self.player_position = np.argwhere(self.room_state == 5)[0]
         self.num_env_steps = 0
@@ -218,7 +225,14 @@ class SokobanEnv(gym.Env):
         self.boxes_on_target = 0
 
         starting_observation = self.render(render_mode)
-        return starting_observation
+
+        # Return the state information in info
+        info = {
+            "room_state": self.room_state,  # Added
+            "room_fixed": self.room_fixed,  # Added
+        }
+
+        return starting_observation, info
 
     def render(self, mode='human', close=None, scale=1):
         assert mode in RENDERING_MODES
@@ -229,19 +243,13 @@ class SokobanEnv(gym.Env):
             return img
 
         elif 'human' in mode:
-            from gym.envs.classic_control import rendering
-            if self.viewer is None:
-                self.viewer = rendering.SimpleImageViewer()
-            self.viewer.imshow(img)
-            return self.viewer.isopen
-
-        elif 'raw' in mode:
-            arr_walls = (self.room_fixed == 0).view(np.int8)
-            arr_goals = (self.room_fixed == 2).view(np.int8)
-            arr_boxes = ((self.room_state == 4) + (self.room_state == 3)).view(np.int8)
-            arr_player = (self.room_state == 5).view(np.int8)
-
-            return arr_walls, arr_goals, arr_boxes, arr_player
+            # No SimpleImageViewer equivalent in gymnasium yet
+            # from gym.envs.classic_control import rendering
+            # if self.viewer is None:
+            #     self.viewer = rendering.SimpleImageViewer()
+            # self.viewer.imshow(img)
+            # return self.viewer.isopen
+            return img
 
         else:
             super(SokobanEnv, self).render(mode=mode)  # just raise an exception
