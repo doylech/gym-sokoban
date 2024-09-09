@@ -86,8 +86,10 @@ class SokobanEnv(gym.Env):
             "action.name": ACTION_LOOKUP[action],
             "action.moved_player": moved_player,
             "action.moved_box": moved_box,
-            "room_state": self.room_state,  # Added
-            "room_fixed": self.room_fixed,  # Added
+            # Added underlying state information below
+            "room_state": self.room_state,
+            "room_fixed": self.room_fixed,
+
         }
         if done:
             info["maxsteps_used"] = self._check_if_maxsteps()
